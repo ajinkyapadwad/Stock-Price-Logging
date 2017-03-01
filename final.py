@@ -1,73 +1,101 @@
-import MySQLdb
+import MySQLdb                      #import SQL DB library
+import datetime                     #import date time library
+from yahoo_finance import Share     #import yahoo finance library
+import time                         #import time library for delay
 
-from yahoo_finance import Share
-import time
+db = MySQLdb.connect("127.0.0.1","root","","Real-Time" )    # DB 1 for real-time
+db2 = MySQLdb.connect("127.0.0.1","root","","Historical" )  # DB for historical data
 
-db = MySQLdb.connect("127.0.0.1","root","","stocks" )
+# cursors for the two DB's
+cursor = db.cursor()    
+cursor2 = db2.cursor()
 
-cursor = db.cursor()
-
+# Ticker symbols for stocks - 
 Y = Share('YHOO')
 G = Share('GOOG')
 A = Share('AMZN')
 E = Share('EA')
 AP = Share('AAPL')
 
-def RealTimeStocks(name):
+# function to track real time data
+def RealTimeStocks():
 
-        sql = """CREATE TABLE realtime (
-                date  DATE,
-                open FLOAT,
-                high FLOAT,
-                low FLOAT,
-                price FLOAT,
-                volume INT )"""
+    # create five separate tables - 
+    sql = """CREATE TABLE Yahoo(date CHAR(40),price FLOAT,volume INT )"""   # SQL query
+    cursor.execute(sql)                                                     # execute SQL query
+    sql = """CREATE TABLE Google(date CHAR(40),price FLOAT,volume INT )"""
+    cursor.execute(sql)
+    sql = """CREATE TABLE Amazon(date CHAR(40),price FLOAT,volume INT )"""
+    cursor.execute(sql)
+    sql = """CREATE TABLE EASports(date CHAR(40),price FLOAT,volume INT )"""
+    cursor.execute(sql)
+    sql = """CREATE TABLE Apple(date CHAR(40),price FLOAT,volume INT )"""
+    cursor.execute(sql)
 
-        cursor.execute(sql)      
+    # loop to track real time data
+    for t in range(5):  # = must be set to 505 for tracking 7 hours (10 AM to 5 PM) @ 50 sec refresh rate
+        for name in [Y,G,A,E,AP] :          # scan the five tickers
+            date=datetime.datetime.now()   # get current system time
+            price= name.get_price()         # get current stock price
+            volume= name.get_volume()       # get current volume
+            if name is Y:   # insert all above avlues into Yahoo table
+                sq2 = "INSERT INTO Yahoo (date, price, volume )VALUES ('%s', '%s', '%s' )" % (date, price, volume)
+            if name is G:   # insert into Google table
+                sq2 = "INSERT INTO Google (date, price, volume )VALUES ('%s', '%s', '%s' )" % (date, price, volume)
+            if name is A:
+                sq2 = "INSERT INTO Amazon (date, price, volume )VALUES ('%s', '%s', '%s' )" % (date, price, volume)
+            if name is E:
+                sq2 = "INSERT INTO EASports (date, price, volume )VALUES ('%s', '%s', '%s' )" % (date, price, volume)
+            if name is AP:
+                sq2 = "INSERT INTO Apple (date, price, volume )VALUES ('%s', '%s', '%s' )" % (date, price, volume)
+            cursor.execute(sq2) # execute SQL query
+            db.commit()         # commit all the changes
+        for name in [Y,G,A,E,AP] :
+            time.sleep(1)   # = delay of 50 seconds expected. 
+            name.refresh()  # refresh command
+
+# function to log historical data
+def HistoricalStocks():
+    # create five separate tables -
+    for name in [Y,G,A,E,AP] :
+        if name is Y:
+            sql = """CREATE TABLE Yahoo ( date  CHAR(40),open FLOAT,high FLOAT,low FLOAT,price FLOAT,volume INT )"""
+        if name is G:
+            sql = """CREATE TABLE Google ( date  CHAR(40),open FLOAT,high FLOAT,low FLOAT,price FLOAT,volume INT )"""
+        if name is A:
+            sql = """CREATE TABLE Amazon ( date  CHAR(40),open FLOAT,high FLOAT,low FLOAT,price FLOAT,volume INT )"""
+        if name is E:
+            sql = """CREATE TABLE EASports ( date  CHAR(40),open FLOAT,high FLOAT,low FLOAT,price FLOAT,volume INT )"""
+        if name is AP:
+            sql = """CREATE TABLE Apple ( date  CHAR(40),open FLOAT,high FLOAT,low FLOAT,price FLOAT,volume INT )"""
+    
+        cursor2.execute(sql)    # execute SQL query
+               
+        dic = name.get_historical('2014-04-25', '2014-04-27')   # get historical data dictionary
         
-        for i in range(1000):
-                date= name.get_trade_datetime()
-                open1= name.get_open()
-                high= name.get_days_high()
-                low= name.get_days_low()
-                price= name.get_price()
-                volume= name.get_volume()
-                sql = "INSERT INTO realtime (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (date, open1, high, low, price, volume)
-                cursor.execute(sql)
-                db.commit()
-                name.refresh()
-                time.sleep(2)
-        db.close()
+        for i in range(len(dic)):   # scan dictionary data
 
-def HistoricalStocks(name):
-        sql = """CREATE TABLE historical (
-                date  DATE,
-                open FLOAT,
-                high FLOAT,
-                low FLOAT,
-                price FLOAT,
-                volume INT )"""
+            val=dic[i].values() # ignore keys, take just values 
 
-        print " NOW RUNNING: ",name.get_name()
-        
-        dic = name.get_historical('2014-04-25', '2015-04-25')
-        
-        for i in range(len(dic)):
-
-            val=dic[i].values()
+            if name is Y:   # insert all above avlues into Yahoo table
+                sq2 = "INSERT INTO Yahoo  (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (val[5], val[2], val[4], val[3], val[7], val[0])
+            if name is G:   # insert all above avlues into Google table
+                sq2 = "INSERT INTO Google (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (val[5], val[2], val[4], val[3], val[7], val[0])
+            if name is A:      
+                sq2 = "INSERT INTO Amazon  (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (val[5], val[2], val[4], val[3], val[7], val[0])
+            if name is E:      
+                sq2 = "INSERT INTO EASports  (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (val[5], val[2], val[4], val[3], val[7], val[0])
+            if name is AP:      
+                sq2 = "INSERT INTO Apple (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (val[5], val[2], val[4], val[3], val[7], val[0])
             
-            cursor = db.cursor()
-            
-            sql = "INSERT INTO yahoo (date, open, high, low, price, volume )VALUES ('%s', '%s', '%s', '%s', '%s', '%s' )" % (val[5], val[2], val[4], val[3], val[7], val[0])
-            
-            cursor.execute(sql)
+            cursor2.execute(sq2)    # execute SQL query
 
-            db.commit()
+            db2.commit()    # commit all the changes
 
-        db.close()
+# Call the two functions
+RealTimeStocks()
+HistoricalStocks()
 
-for stock in [Y,G,A,E,AP] :
-        RealTimeStocks(stock)
-        HistoricalStocks(stock)
-
-
+# close databases
+db.close()
+db2.close()
